@@ -88,7 +88,6 @@ impl BaseApiClient {
 
         if !status.is_success() {
             let code = status.as_u16() as u32;
-            // bubble up the body as message so callers can see server details
             self.handle_error(code, response_text.clone())?;
             unreachable!("early return via handle_error");
         }
