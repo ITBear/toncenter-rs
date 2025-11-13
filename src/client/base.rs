@@ -37,7 +37,10 @@ pub struct BaseApiClient {
 
 impl BaseApiClient {
     pub fn new(api_key: Option<ApiKey>) -> Self {
-        Self { client: Client::new(), api_key }
+        Self {
+            client: Client::new(),
+            api_key,
+        }
     }
 
     async fn send_request<T: DeserializeOwned + std::fmt::Debug>(
@@ -62,7 +65,11 @@ impl BaseApiClient {
             };
         }
 
-        let url = format!("{}{}", base_url, endpoint);
+        let url = format!(
+            "{}/{}",
+            base_url.trim_end_matches('/'),
+            endpoint.trim_start_matches('/')
+        );
         let url_with_params = reqwest::Url::parse_with_params(&url, query_params)?;
         let request_builder = match method {
             reqwest::Method::GET => self.client.get(url_with_params).headers(headers),
@@ -95,7 +102,9 @@ impl BaseApiClient {
         if let Ok(probe) = serde_json::from_str::<RpcProbe>(&response_text) {
             if probe.ok == Some(false) {
                 let code = probe.code.unwrap_or(500);
-                let msg = probe.error.unwrap_or_else(|| "Unknown RPC error".to_string());
+                let msg = probe
+                    .error
+                    .unwrap_or_else(|| "Unknown RPC error".to_string());
                 self.handle_error(code, msg)?;
                 unreachable!("early return via handle_error");
             }
@@ -131,8 +140,9 @@ impl BaseApiClient {
         endpoint: &str,
         body: &impl Serialize,
     ) -> Result<T, ToncenterError> {
-        let response_body: ApiResponse<T> =
-            self.send_request(reqwest::Method::POST, base_url, endpoint, &[], Some(body)).await?;
+        let response_body: ApiResponse<T> = self
+            .send_request(reqwest::Method::POST, base_url, endpoint, &[], Some(body))
+            .await?;
         self.handle_api_response(response_body).await
     }
 
@@ -142,8 +152,9 @@ impl BaseApiClient {
         endpoint: &str,
         body: &impl Serialize,
     ) -> Result<T, ToncenterError> {
-        let response_body: JsonRpcResponse<T> =
-            self.send_request(reqwest::Method::POST, base_url, endpoint, &[], Some(body)).await?;
+        let response_body: JsonRpcResponse<T> = self
+            .send_request(reqwest::Method::POST, base_url, endpoint, &[], Some(body))
+            .await?;
 
         if response_body.ok {
             if let JsonRpcResult::Success { result } = response_body.data {
@@ -153,8 +164,15 @@ impl BaseApiClient {
             unreachable!("Invalid response from server, expected 'result'");
         }
 
-        if let JsonRpcResult::Error { result, error, code } = response_body.data {
-            let error_message = error.or(result).unwrap_or_else(|| "Unknown error".to_string());
+        if let JsonRpcResult::Error {
+            result,
+            error,
+            code,
+        } = response_body.data
+        {
+            let error_message = error
+                .or(result)
+                .unwrap_or_else(|| "Unknown error".to_string());
             self.handle_error(code, error_message)?;
         }
 
@@ -173,8 +191,15 @@ impl BaseApiClient {
             unreachable!("Invalid response from server, expected 'result'");
         }
 
-        if let ApiResponseResult::Error { result, error, code } = response_body.data {
-            let error_message = error.or(result).unwrap_or_else(|| "Unknown error".to_string());
+        if let ApiResponseResult::Error {
+            result,
+            error,
+            code,
+        } = response_body.data
+        {
+            let error_message = error
+                .or(result)
+                .unwrap_or_else(|| "Unknown error".to_string());
             self.handle_error(code, error_message)?;
         }
 
