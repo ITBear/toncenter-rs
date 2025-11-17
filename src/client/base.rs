@@ -1,10 +1,12 @@
+use core::fmt;
+
 use crate::{
     error::ToncenterError,
     models::{ApiResponse, ApiResponseResult, JsonRpcResponse, JsonRpcResult},
 };
 use log::debug;
 use reqwest::{header::HeaderMap, Client};
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 #[derive(Debug, serde::Deserialize)]
 struct RpcProbe {
@@ -16,11 +18,21 @@ struct RpcProbe {
     code: Option<u32>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Network {
     Mainnet,
     Testnet,
     Custom(String),
+}
+
+impl fmt::Display for Network {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Network::Mainnet => f.write_str("https://toncenter.com/api/v2/"),
+            Network::Testnet => f.write_str("https://testnet.toncenter.com/api/v2/"),
+            Network::Custom(s) => f.write_str(s),
+        }
+    }
 }
 
 #[derive(Debug)]
